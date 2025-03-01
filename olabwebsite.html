@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Amrita OLabs - Boiling Point Experiment</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: url('experiment.jpg');
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+            background-repeat: no-repeat;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            color: white;
+            position: relative;
+        }
+
+        .body-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(5px);
+            z-index: -1;
+        }
+
+        .logo {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            width: 200px;
+            height: auto;
+        }
+
+        .header {
+            margin-top: 20px;
+            padding: 10px 20px;
+            border-radius: 10px;
+            text-align: center;
+            font-size: 24px;
+            font-weight: bold;
+            color: #0a3339;
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.6);
+            width: max-content;
+            background: rgba(255, 255, 255, 0.8);
+        }
+
+        .temp-container {
+            background-color: rgba(154, 149, 149, 0.6);
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            margin-top: 40px;
+            width: 80%;
+            max-width: 450px;
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.6);
+        }
+
+        #temperature {
+            font-size: 2em;
+            color: #d9534f;
+            font-weight: bold;
+        }
+
+        .container {
+            background-color: rgba(181, 169, 169, 0.7);
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.8);
+            text-align: center;
+            width: 80%;
+            max-width: 450px;
+            margin-top: 30px;
+        }
+
+        .video-container {
+            margin-top: 30px;
+            width: 80%;
+            max-width: 500px;
+            background: rgba(0, 0, 0, 0.6);
+            padding: 10px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.6);
+            text-align: center;
+        }
+
+        .video-container video {
+            width: 100%;
+            border-radius: 8px;
+        }
+
+        .buttons button {
+            padding: 10px;
+            margin: 5px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            background-color: #dbbd52;
+            color: white;
+            font-size: 16px;
+        }
+
+        .buttons button:hover {
+            background-color: #f4c73f;
+        }
+    </style>
+</head>
+<body>
+
+    <img src="logo.png" alt="Amrita OLabs Logo" class="logo">
+    <div class="header">Amrita OLabs</div>
+
+    <!-- Real-Time Temperature Monitor -->
+    <div class="temp-container">
+        <h2>🌡 Real-Time Temperature Monitor</h2>
+        <p>Live temperature data from your sensor:</p>
+        <div id="temperature">Loading...</div>
+    </div>
+
+    <!-- Boiling Point Experiment -->
+    <div class="container">
+        <h1>Melting Point of Organic Compounds</h1>
+        <p>The temperature at which the compound starts melting (°C):</p>
+        <input type="number" id="temp1" placeholder="Enter t₁ in °C">
+        
+        <p>The temperature at which the compound is fully melted (°C):</p>
+        <input type="number" id="temp2" placeholder="Enter t₂ in °C">
+        
+        <div class="result" id="result">Final Melting Point: -- °C</div>
+
+        <div class="buttons">
+            <button onclick="calculateBoilingPoint()">Calculate Melting Point</button>
+            <button onclick="resetFields()">Reset</button>
+        </div>
+    </div>
+
+    <!-- Live Video Stream -->
+    <div class="video-container">
+        <h3>🔴 Live Video Stream</h3>
+        <video id="remoteVideo" autoplay playsinline></video>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        function calculateBoilingPoint() {
+            let t1 = parseFloat(document.getElementById("temp1").value);
+            let t2 = parseFloat(document.getElementById("temp2").value);
+
+            if (isNaN(t1) || isNaN(t2)) {
+                document.getElementById("result").innerText = "Please enter valid temperatures.";
+            } else {
+                let boilingPoint = (t1 + t2) / 2;
+                document.getElementById("result").innerText = "Final Boiling Point: " + boilingPoint.toFixed(2) + " °C";
+            }
+        }
+
+        function resetFields() {
+            document.getElementById("temp1").value = "";
+            document.getElementById("temp2").value = "";
+            document.getElementById("result").innerText = "Final Boiling Point: -- °C";
+        }
+
+        // Real-Time Temperature Monitor
+        const BLYNK_AUTH_TOKEN = "C0RxjNhFrQ5M7EtLlxwouCO0zqcZRSQN";  // Replace with your Blynk token
+        const VIRTUAL_PIN = "V0"; // Virtual Pin where temperature data is stored
+
+        async function fetchTemperature() {
+            try {
+                let response = await fetch(`https://blynk.cloud/external/api/get?token=${BLYNK_AUTH_TOKEN}&${VIRTUAL_PIN}`);
+                let temperature = await response.text();
+                document.getElementById("temperature").innerText = `${temperature} °C`;
+            } catch (error) {
+                console.error("Error fetching temperature:", error);
+                document.getElementById("temperature").innerText = "Error loading data";
+            }
+        }
+
+        fetchTemperature(); // Initial fetch
+        setInterval(fetchTemperature, 5000); // Refresh every 5 seconds
+
+        // WebRTC Live Video Stream
+        const socket = io();
+        const remoteVideo = document.getElementById("remoteVideo");
+        let peerConnection = new RTCPeerConnection({
+            iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
+        });
+
+        peerConnection.ontrack = (event) => { remoteVideo.srcObject = event.streams[0]; };
+        peerConnection.onicecandidate = (event) => { if (event.candidate) socket.emit("signal", { candidate: event.candidate }); };
+        socket.on("signal", async (data) => { if (data.offer) { await peerConnection.setRemoteDescription(new RTCSessionDescription(data.offer)); } });
+    </script>
+
+</body>
+</html>
